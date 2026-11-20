@@ -1,0 +1,53 @@
+{
+  "name": "mc-ic",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "An LLM agent that designs, builds and verifies redstone logic circuits in Minecraft",
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c cyan,magenta \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "tsx watch src/host/index.ts",
+    "dev:web": "vite",
+    "dev:demo": "MODEL_MODE=fixture MINECRAFT_MODE=mock concurrently -k -n api,web -c cyan,magenta \"npm:dev:api\" \"npm:dev:web\"",
+    "build": "npm run typecheck && npm run build:server && npm run build:web",
+    "build:server": "tsup src/host/index.ts --format esm --platform node --target node20 --out-dir dist/server --clean --sourcemap --external prismarine-viewer --external canvas",
+    "build:web": "vite build",
+    "start": "node dist/server/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "http-proxy-middleware": "^3.0.7",
+    "mineflayer": "^4.20.0",
+    "prismarine-block": "^1.23.0",
+    "prismarine-chunk": "^1.41.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "undici": "^6.28.0",
+    "vec3": "^0.1.10",
+    "zod": "^3.24.2"
+  },
+  "optionalDependencies": {
+    "canvas": "^3.2.0",
+    "prismarine-viewer": "^1.28.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.13.10",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^6.1.0",
+    "concurrently": "^9.1.2",
+    "tsup": "^8.5.1",
+    "tsx": "^4.23.12",
+    "typescript": "^5.8.2",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
+  }
+}

@@ -1,0 +1,285 @@
+[
+  {
+    "id": "physics.lever.attachment_and_input",
+    "category": "block_physics",
+    "minecraftVersion": "1.20.4",
+    "subject": "minecraft:lever",
+    "appliesWhen": [
+      "A PhysicalLayout uses a lever as a binary input."
+    ],
+    "facts": [
+      "The face property is floor, wall, or ceiling; facing is north, south, east, or west and does not by itself choose the mounting face.",
+      "For face=wall, facing is the direction the lever points AWAY from its wall; the attachment block is on the opposite side (facing=west hangs on the block at x+1, facing=east on x-1, facing=north on z+1, facing=south on z-1).",
+      "A powered lever strongly powers its attachment block; that attachment block is the reliable block to use when the input must drive an inverter.",
+      "A powered lever also powers every face-adjacent redstone component directly (wire, lamp, repeater input), but it never powers any solid block other than its attachment block."
+    ],
+    "relativeRules": [
+      { "when": "face=floor", "conclusion": "support offset from lever is (0,-1,0)" },
+      { "when": "face=ceiling", "conclusion": "support offset from lever is (0,+1,0)" },
+      { "when": "face=wall and facing=north", "conclusion": "support offset from lever is (0,0,+1)" },
+      { "when": "face=wall and facing=south", "conclusion": "support offset from lever is (0,0,-1)" },
+      { "when": "face=wall and facing=east", "conclusion": "support offset from lever is (-1,0,0)" },
+      { "when": "face=wall and facing=west", "conclusion": "support offset from lever is (+1,0,0)" }
+    ],
+    "invariants": [
+      "The lever and its support occupy different coordinates.",
+      "The support coordinate contains a solid support block unless the environment explicitly supplies that support.",
+      "Descriptions never override face, facing, and coordinate geometry."
+    ],
+    "invalidPatterns": [
+      { "pattern": "face=wall but only a block below the lever is provided", "reason": "A wall lever requires a side attachment block selected by facing." },
+      { "pattern": "face=floor and the lever shares a coordinate with its support", "reason": "The floor support is one block below the lever." },
+      { "pattern": "face=wall, facing=west, and the intended wall block placed at x-1", "reason": "facing names the free side; the lever hangs on the block at x+1. Flip facing to east to hang on the x-1 block." },
+      { "pattern": "an output lamp face-adjacent to the lever or to the lever's attachment block while some truth-table row needs input=1 and output=0", "reason": "The lever lights that lamp directly and bypasses the logic." }
+    ],
+    "verification": {
+      "status": "deterministic_registry_aligned",
+      "evidence": ["block-capabilities lever blockstates", "layout-physics attachmentSupportPosition", "redstone simulator lever rules"]
+    }
+  },
+  {
+    "id": "physics.redstone_wall_torch.attachment_and_inversion",
+    "category": "block_physics",
+    "minecraftVersion": "1.20.4",
+    "subject": "minecraft:redstone_wall_torch",
+    "appliesWhen": [
+      "A PhysicalLayout uses a wall-mounted redstone torch as an inverter."
+    ],
+    "facts": [
+      "A wall torch must attach to the side of a solid block.",
+      "facing is the direction the torch points AWAY from its wall; the attachment block is on the opposite side (facing=east hangs on x-1, facing=west on x+1, facing=north on z+1, facing=south on z-1).",
+      "The torch is on when its attachment block is unpowered and off when that attachment block is powered (strongly or weakly).",
+      "A lit torch powers face-adjacent wire, lamps, and repeater inputs on every side except its attachment block, and strongly powers the solid block directly above it. It never powers a solid block beside it and never powers diagonal blocks.",
+      "The attachment block is not the torch output receiver; route output from the torch to a distinct face-adjacent receiver."
+    ],
+    "relativeRules": [
+      { "when": "facing=north", "conclusion": "support offset from torch is (0,0,+1)" },
+      { "when": "facing=south", "conclusion": "support offset from torch is (0,0,-1)" },
+      { "when": "facing=east", "conclusion": "support offset from torch is (-1,0,0)" },
+      { "when": "facing=west", "conclusion": "support offset from torch is (+1,0,0)" }
+    ],
+    "invariants": [
+      "The attachment coordinate contains a solid support block.",
+      "The signal being inverted must actually power the attachment block.",
+      "The first claimed output receiver is face-adjacent to the torch."
+    ],
+    "invalidPatterns": [
+      { "pattern": "a wall torch relies only on a block below it", "reason": "A wall torch requires side support determined by facing." },
+      { "pattern": "the explanation names a support that is not at the computed attachment coordinate", "reason": "Coordinate geometry is authoritative." },
+      { "pattern": "facing=west with the intended wall placed at x-1 and only air or a wire at x+1", "reason": "The torch would hang on x+1; use facing=east to hang on the x-1 block." },
+      { "pattern": "the torch's attachment block is face-adjacent to the output lamp", "reason": "Whenever the input powers that block, the lamp lights directly and the inversion is bypassed." },
+      { "pattern": "the output torch hangs on the output lamp itself", "reason": "A torch never powers its own attachment block, so the lamp never lights from it." }
+    ],
+    "verification": {
+      "status": "deterministic_registry_aligned",
+      "evidence": ["block-capabilities wall-torch blockstates", "layout-physics attachmentSupportPosition", "redstone simulator torch rules"]
+    }
+  },
+  {
+    "id": "physics.redstone_torch.floor_attachment_and_inversion",
+    "category": "block_physics",
+    "minecraftVersion": "1.20.4",
+    "subject": "minecraft:redstone_torch",
+    "appliesWhen": [
+      "A PhysicalLayout uses a floor-standing redstone torch as an inverter."
+    ],
+    "facts": [
+      "A floor redstone torch stands on the top surface of a solid attachment block.",
+      "The torch is on when the block directly below it is unpowered and off when that block is powered (strongly or weakly).",
+      "A lit floor torch powers face-adjacent wire, lamps, and repeater inputs on its four sides and strongly powers the solid block directly above it; the block below is its attachment and is never powered by it.",
+      "A merely adjacent powered block or a lever beside the torch does not replace the required attachment relationship."
+    ],
+    "relativeRules": [
+      { "when": "for every floor redstone torch", "conclusion": "support offset from torch is (0,-1,0)" }
+    ],
+    "invariants": [
+      "The coordinate directly below the torch contains a solid support block.",
+      "The input to the inverter powers that exact support block.",
+      "The first output receiver is face-adjacent to the torch."
+    ],
+    "invalidPatterns": [
+      { "pattern": "the claimed support differs in x or z from the torch", "reason": "A floor torch support is directly below at the same x and z." },
+      { "pattern": "the torch and lamp differ on two axes by one block", "reason": "That is diagonal, not face-adjacent output delivery." },
+      { "pattern": "a wire one level below and one block sideways from the torch is expected to receive its output", "reason": "That wire is diagonal to the torch and receives nothing." }
+    ],
+    "verification": {
+      "status": "deterministic_registry_aligned",
+      "evidence": ["block-capabilities floor-torch blockstates", "layout-physics attachmentSupportPosition", "redstone simulator torch rules"]
+    }
+  },
+  {
+    "id": "physics.redstone_wire.support_and_connectivity",
+    "category": "block_physics",
+    "minecraftVersion": "1.20.4",
+    "subject": "minecraft:redstone_wire",
+    "appliesWhen": [
+      "A PhysicalLayout routes a signal with redstone wire."
+    ],
+    "facts": [
+      "Redstone wire occupies the block-space above a supporting top surface.",
+      "Wire power and directional blockstates are derived by Minecraft and should normally be omitted from a proposed layout.",
+      "Wire receives power 15 from a face-adjacent ON lever, lit torch, or redstone block, from a repeater or comparator output facing it, and from a STRONGLY powered solid block beside or below it (one with a lever attached, a lit torch directly below it, or a repeater/comparator output facing it). From a neighbouring wire it receives that wire's power minus 1.",
+      "A solid block powered only by wire (weakly powered) never passes power on to another wire.",
+      "A wire's visible shape decides what it powers sideways. After /setblock it connects toward face-adjacent wire, levers, torches, comparators, redstone blocks, and repeaters aligned with it; with exactly one connection it becomes a straight line through that axis; with none it stays a dot.",
+      "A wire powers the block directly below it and the horizontal neighbours its line points into (both ends of a straight line, every arm of a corner or cross). It never powers the block above it, and it never powers a solid block or lamp it merely runs past sideways.",
+      "Wire climbs and descends: wires at heights y and y+1 on horizontally adjacent columns connect when the upper wire sits on a solid block and the block directly above the lower wire is not solid. Any solid block with wire on top that stands next to another wire therefore joins the two nets.",
+      "A same-level route connects through horizontal face adjacency; diagonal contact alone is not a connection."
+    ],
+    "relativeRules": [
+      { "when": "the environment does not explicitly provide terrain support", "conclusion": "support offset from wire is (0,-1,0)" },
+      { "when": "a wire must power a solid block (for example a torch attachment block) at offset (+1,0,0)", "conclusion": "the wire's straight line must run along x so that it ends in the block, or another wire must lie on top of the block at (+1,+1,0)" },
+      { "when": "two wires must NOT be connected", "conclusion": "keep them at least two blocks apart horizontally, or make sure no wire sits on a solid block that is face-adjacent to the other wire" }
+    ],
+    "invariants": [
+      "Every wire coordinate has a valid support surface or an explicitly supplied terrain surface below it.",
+      "Every claimed route is a continuous sequence of legal redstone connections.",
+      "A support block never shares the wire coordinate.",
+      "Every wire that must switch a torch ends its line in the torch attachment block or lies on top of it."
+    ],
+    "invalidPatterns": [
+      { "pattern": "two wires touch only at a corner", "reason": "Diagonal contact does not transmit a redstone signal." },
+      { "pattern": "wire is placed above air without an environment-provided surface", "reason": "The wire lacks support." },
+      { "pattern": "a wire line runs north-south alongside a torch attachment block that lies to its east or west", "reason": "The line does not point into the block; the block stays unpowered and the torch never turns off." },
+      { "pattern": "an input wire and an output wire on adjacent columns at different heights with an open block above the lower one", "reason": "They join by the climbing rule and the input bypasses the logic." },
+      { "pattern": "a single wire between a powered solid block and a lamp, touching no wire, lever, or torch", "reason": "It stays a dot after /setblock and powers only the block beneath it, not the lamp." },
+      { "pattern": "a wire expected to light the lamp directly above it", "reason": "Wire never powers the block above itself; put the wire on top of the lamp or beside it pointing in." }
+    ],
+    "verification": {
+      "status": "deterministic_registry_aligned",
+      "evidence": ["block-capabilities wire blockstates", "layout validator support checks", "redstone simulator wire connection and strength rules"]
+    }
+  },
+  {
+    "id": "physics.redstone_lamp.power_reception",
+    "category": "block_physics",
+    "minecraftVersion": "1.20.4",
+    "subject": "minecraft:redstone_lamp",
+    "appliesWhen": [
+      "A PhysicalLayout exposes a redstone lamp as a logical output."
+    ],
+    "facts": [
+      "A redstone lamp is a solid block and occupies its own coordinate.",
+      "A planned output needs a real redstone power-delivery path; mapping a logic output ID to the lamp does not power it.",
+      "A lamp lights when any face-adjacent block delivers power: a lit torch beside it (not one hanging on it), an ON lever beside it, a wire whose line points into it or that lies on top of it, a repeater or comparator output facing it, or ANY powered solid block beside it, including a torch's or lever's attachment block.",
+      "A reliable direct delivery component is at a distinct face-adjacent coordinate, or wire may sit directly above the lamp because the lamp is solid support."
+    ],
+    "relativeRules": [
+      { "when": "direct face-adjacent delivery", "conclusion": "the absolute 3D Manhattan distance from delivery component to lamp is exactly 1" },
+      { "when": "wire directly above the lamp", "conclusion": "wire offset from lamp is (0,+1,0)" },
+      { "when": "some truth-table row needs the output to be 0", "conclusion": "no block that is powered in that row may be face-adjacent to the lamp" }
+    ],
+    "invariants": [
+      "The fixed output coordinate contains only the lamp.",
+      "The output edge has at least one distinct delivery component that is geometrically connected to the lamp.",
+      "Every face-adjacent neighbour of the lamp is unpowered in every row whose expected output is 0."
+    ],
+    "invalidPatterns": [
+      { "pattern": "an output torch and lamp differ by one block on both y and z", "reason": "They are diagonal and do not provide direct face-adjacent delivery." },
+      { "pattern": "the output edge is listed only in the lamp implements array", "reason": "A mapping is metadata, not a physical power path." },
+      { "pattern": "the output lamp is face-adjacent to a torch attachment block or a lever attachment block", "reason": "Powered solid blocks light neighbouring lamps regardless of which logic edge they implement, so the lamp lights whenever the input is ON." },
+      { "pattern": "a wire directly below the lamp is expected to light it", "reason": "Wire never powers the block above itself." }
+    ],
+    "verification": {
+      "status": "deterministic_registry_aligned",
+      "evidence": ["redstone lamp capability", "layout validator OUTPUT_SIGNAL_DISCONNECTED check", "redstone simulator lamp rules"]
+    }
+  },
+  {
+    "id": "physics.solid_block.power_conduction",
+    "category": "block_physics",
+    "minecraftVersion": "1.20.4",
+    "subject": "opaque solid blocks (stone, smooth_stone, polished_andesite, iron_block, redstone_lamp, grass)",
+    "appliesWhen": [
+      "A PhysicalLayout expects a signal to pass through, into, or out of a solid block, including every torch attachment block."
+    ],
+    "facts": [
+      "A solid block is STRONGLY powered by a lever attached to it, a lit redstone torch directly below it, or a repeater/comparator output facing into it.",
+      "A solid block is WEAKLY powered by a wire lying on top of it or by a wire whose line points into it.",
+      "A powered solid block (strong or weak) turns off torches hanging on it, lights face-adjacent lamps, and feeds repeater or comparator inputs facing it. Only a STRONGLY powered block also powers adjacent wire.",
+      "Solid blocks never pass power to other solid blocks, and a lit torch never powers a solid block beside it (only the block directly above it).",
+      "Glass and pistons support components but cannot be powered; a torch on glass never turns off."
+    ],
+    "relativeRules": [
+      { "when": "a torch attachment block must be driven by an input several blocks away", "conclusion": "end a wire line inside that block (the line's axis passes through it) or place the last wire on top of it; a wire passing beside it does nothing" },
+      { "when": "a lever must drive an inverter directly", "conclusion": "hang the torch on the lever's own attachment block, which the lever powers strongly" }
+    ],
+    "invariants": [
+      "Every torch attachment block that must switch has a legal power path into it.",
+      "No solid block that is powered in a row whose expected output is 0 is face-adjacent to the output lamp."
+    ],
+    "invalidPatterns": [
+      { "pattern": "a torch placed beside a solid block in order to power it", "reason": "Torches power the block above them and adjacent components, never a block beside them." },
+      { "pattern": "a signal expected to travel from one solid block into a neighbouring solid block", "reason": "Solid blocks do not conduct to each other." },
+      { "pattern": "a wire on top of a weakly powered block expected to receive power from it", "reason": "Only strongly powered blocks power adjacent wire." }
+    ],
+    "verification": {
+      "status": "deterministic_registry_aligned",
+      "evidence": ["redstone simulator direct and weak power rules", "Minecraft 1.20.4 live cases with torch attachment blocks driven by wire ends and by lever attachment"]
+    }
+  },
+  {
+    "id": "physics.repeater.direction_and_isolation",
+    "category": "block_physics",
+    "minecraftVersion": "1.20.4",
+    "subject": "minecraft:repeater",
+    "appliesWhen": [
+      "A PhysicalLayout uses a repeater to refresh, isolate, or direct a signal."
+    ],
+    "facts": [
+      "facing names the INPUT side: a repeater with facing=east reads power from the block at x+1 and outputs 15 to the block at x-1.",
+      "The input is taken from the block behind it: a wire, a powered solid block, a lever, a lit torch, or another repeater or comparator output.",
+      "The output strongly powers a solid block in front and powers wire, lamps, and repeater inputs in front; nothing leaves through the sides or the back.",
+      "A repeater or comparator output pointing into the SIDE of a repeater locks it, which makes the circuit history-dependent."
+    ],
+    "relativeRules": [
+      { "when": "facing=east", "conclusion": "input offset (+1,0,0), output offset (-1,0,0)" },
+      { "when": "facing=west", "conclusion": "input offset (-1,0,0), output offset (+1,0,0)" },
+      { "when": "facing=north", "conclusion": "input offset (0,0,-1), output offset (0,0,+1)" },
+      { "when": "facing=south", "conclusion": "input offset (0,0,+1), output offset (0,0,-1)" },
+      { "when": "for every repeater", "conclusion": "support offset is (0,-1,0)" }
+    ],
+    "invariants": [
+      "The repeater stands on a solid support block.",
+      "The facing axis is aligned with the signal path through it."
+    ],
+    "invalidPatterns": [
+      { "pattern": "treating facing as the output direction", "reason": "facing points at the input; the output leaves from the opposite face." },
+      { "pattern": "a repeater or comparator output aimed at the side of another repeater", "reason": "The side input locks the repeater instead of feeding it." }
+    ],
+    "verification": {
+      "status": "deterministic_registry_aligned",
+      "evidence": ["block-capabilities repeater blockstates", "redstone simulator diode rules mirroring vanilla DiodeBlock input/output geometry"]
+    }
+  },
+  {
+    "id": "physics.spatial.face_adjacency_and_occupancy",
+    "category": "spatial_physics",
+    "minecraftVersion": "1.20.4",
+    "subject": "block-space geometry",
+    "appliesWhen": [
+      "Any PhysicalLayout assigns blocks and claims physical connections."
+    ],
+    "facts": [
+      "One Minecraft block coordinate can contain at most one block.",
+      "Two distinct coordinates are face-adjacent exactly when their absolute 3D Manhattan distance is 1.",
+      "If two axes change between coordinates, the blocks are diagonal and are not directly face-adjacent.",
+      "North is z-1, south is z+1, east is x+1, west is x-1, up is y+1."
+    ],
+    "relativeRules": [
+      { "when": "face-adjacent", "conclusion": "allowed offsets are (+/-1,0,0), (0,+/-1,0), or (0,0,+/-1)" }
+    ],
+    "invariants": [
+      "All block coordinates are unique.",
+      "Every explanation claim about direct attachment or direct delivery agrees with coordinate geometry.",
+      "Support blocks and mounted components occupy distinct coordinates."
+    ],
+    "invalidPatterns": [
+      { "pattern": "two blocks occupy the same coordinate", "reason": "Minecraft block-space occupancy is exclusive." },
+      { "pattern": "an explanation calls a diagonal pair adjacent", "reason": "Descriptions cannot redefine geometric adjacency." }
+    ],
+    "verification": {
+      "status": "deterministic_registry_aligned",
+      "evidence": ["layout validator duplicate-position and adjacency checks"]
+    }
+  }
+]

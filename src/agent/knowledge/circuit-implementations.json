@@ -1,0 +1,325 @@
+[
+  {
+    "id": "implementation.not.direct_wall_torch",
+    "category": "physical_implementation",
+    "minecraftVersion": "1.20.4",
+    "logicalFunction": "Y = NOT A",
+    "preconditions": [
+      "One binary input is controlled by a lever.",
+      "A solid input attachment block and a redstone wall torch are available.",
+      "The output can be reached by a legal redstone path without an input-to-output bypass."
+    ],
+    "logicalIdentity": "A redstone torch emits the inverse of the powered state of its attachment block.",
+    "roles": [
+      "input lever",
+      "shared input attachment block",
+      "wall-torch inverter",
+      "output route",
+      "output lamp"
+    ],
+    "requiredConnections": [
+      "The input lever directly controls the shared input attachment block.",
+      "The inverter wall torch hangs on that exact same input attachment block (its facing points away from that block). Alternatively the torch may hang on any block that a wire line from the lever ends inside of or lies on top of; a wire passing beside the block is not enough.",
+      "The first output-route receiver is face-adjacent to the inverter torch, on any side except the attachment side.",
+      "The output route physically delivers power to the output lamp: the last wire's line points into the lamp or lies on top of it.",
+      "No block that the lever powers (the lever itself, its attachment block) is face-adjacent to the output lamp."
+    ],
+    "physicalInvariants": [
+      "Input A=0 leaves the attachment block unpowered, so the torch and output are on.",
+      "Input A=1 powers the attachment block, so the torch and output are off.",
+      "The lever or its directly powered attachment block does not power the lamp through a bypass."
+    ],
+    "invalidPatterns": [
+      { "pattern": "the input reaches a separate torch support only through a wire running alongside it", "reason": "A wire powers only the block it ends in or lies on; the support stays unpowered and the torch never turns off." },
+      { "pattern": "the first output receiver is diagonal from the torch", "reason": "The inverter output path is physically disconnected." },
+      { "pattern": "the torch attachment block touches the output lamp", "reason": "When A=1 that block is powered and lights the lamp directly, so Y=1 instead of 0." }
+    ],
+    "verification": {
+      "status": "world_truth_table_verified",
+      "evidence": ["Minecraft 1.20.4 cases A=0 -> Y=1 and A=1 -> Y=0", "Minecraft 1.20.4 live regression corpus: lever-attachment inverters and wire-end-driven inverters both verified"]
+    }
+  },
+  {
+    "id": "implementation.and.de_morgan_three_inverters",
+    "category": "physical_implementation",
+    "minecraftVersion": "1.20.4",
+    "logicalFunction": "Y = A AND B",
+    "preconditions": [
+      "Two binary inputs are controlled independently.",
+      "The allowed blocks can construct two input inverters, a redstone merge network, one output inverter, and an output route.",
+      "The workspace has enough separation to prevent direct input-to-output bypasses."
+    ],
+    "logicalIdentity": "A AND B = NOT((NOT A) OR (NOT B)).",
+    "roles": [
+      "input A controller and attachment",
+      "input B controller and attachment",
+      "inverter for A",
+      "inverter for B",
+      "merge network carrying (NOT A) OR (NOT B)",
+      "solid attachment block controlled by the merge network",
+      "final inverter",
+      "output route",
+      "output lamp"
+    ],
+    "requiredConnections": [
+      "Input A directly controls the attachment block of the A inverter.",
+      "Input B directly controls the attachment block of the B inverter.",
+      "Each input inverter has a merge-network wire face-adjacent to it at the SAME height (a wire one level lower or higher and one block sideways is diagonal and receives nothing).",
+      "Both input-inverter outputs physically connect to one continuous merge network.",
+      "The merge network powers the exact attachment block of the final inverter: a merge wire ends its line inside that block or lies on top of it.",
+      "The final inverter hangs on that attachment block, not on the output lamp, and has a wire or the lamp face-adjacent to it on a free side.",
+      "The output route physically delivers power to the output lamp."
+    ],
+    "physicalInvariants": [
+      "When either input is 0, at least one input inverter is on, the merge network is powered, and the final inverter is off.",
+      "Only when A=1 and B=1 are both input inverters off, leaving the final-inverter attachment unpowered and the output on.",
+      "Every inverter reacts to its actual attachment block rather than to a merely nearby signal.",
+      "All four input combinations have a combinational, history-independent output."
+    ],
+    "invalidPatterns": [
+      { "pattern": "the two input-inverter outputs are described as merged but their wires are not physically continuous", "reason": "The logical OR of the inverted inputs is not constructed." },
+      { "pattern": "the final torch is beside the merge wire but its attachment block is not powered by that wire", "reason": "A torch inverts only its attachment block; a wire running past the block does not power it." },
+      { "pattern": "the merge wire runs one level above or below the input torches", "reason": "Each torch is diagonal to the wire, so the merge network never receives the inverted inputs and the output is constant." },
+      { "pattern": "the final inverter hangs on the output lamp", "reason": "A torch never powers its own attachment block, so the lamp can never light." },
+      { "pattern": "the final inverter and lamp touch only diagonally", "reason": "The output is physically disconnected." }
+    ],
+    "verification": {
+      "status": "world_truth_table_verified",
+      "evidence": ["De Morgan identity", "Minecraft redstone-torch inversion and wire merge behavior", "Minecraft 1.20.4 live regression corpus: two four-row AND layouts verified, twelve failing variants reproduced"]
+    }
+  },
+  {
+    "id": "implementation.or.repeater_isolated_merge",
+    "category": "physical_implementation",
+    "minecraftVersion": "1.20.4",
+    "logicalFunction": "Y = A OR B",
+    "preconditions": [
+      "Two independently routed binary source nets are available.",
+      "Repeaters and redstone wire are allowed when either source must remain isolated from the merged net.",
+      "The merge can reach its consumer without touching an unrelated input or output lane."
+    ],
+    "logicalIdentity": "A redstone merge is powered when either isolated incoming branch is powered.",
+    "roles": [
+      "source A route",
+      "source B route",
+      "one directional repeater per incoming branch",
+      "common merge wire",
+      "output consumer"
+    ],
+    "requiredConnections": [
+      "Each source route reaches the input side of its own repeater; repeater facing names that input side in the layout contract.",
+      "The output side of each repeater reaches a different coordinate on one physically continuous merge wire.",
+      "No merge-wire coordinate touches either source route on the source side of its repeater, so the merged net cannot back-power or join the inputs.",
+      "The merge wire ends straight into the output consumer, lies on top of its attachment block, or feeds the input side of a final repeater that points at the consumer.",
+      "If more than fifteen wire steps occur between powered components, an outward-facing repeater refreshes the signal before it reaches zero."
+    ],
+    "physicalInvariants": [
+      "A=0 and B=0 leave every merge coordinate unpowered.",
+      "A=1 or B=1 powers the merge and its consumer.",
+      "The two inputs remain distinct nets until after their isolation repeaters.",
+      "A neighbouring wire that merely runs past a solid consumer does not count as delivery unless its line points into that consumer."
+    ],
+    "invalidPatterns": [
+      { "pattern": "the two source wires are joined before their branch repeaters", "reason": "The inputs become one net and can power each other's inverter attachment blocks." },
+      { "pattern": "both repeaters point away from their sources", "reason": "A repeater is directional; neither incoming signal reaches the merge." },
+      { "pattern": "two intended independent lanes are in adjacent horizontal coordinates for several blocks", "reason": "Redstone wire joins side-to-side and silently creates an unintended OR before the intended gate." },
+      { "pattern": "the last merge wire turns beside the consumer instead of ending into it", "reason": "The powered wire can run alongside the consumer without delivering power." }
+    ],
+    "verification": {
+      "status": "world_truth_table_verified",
+      "evidence": [
+        "Minecraft 1.20.4 live regression corpus contains isolated two-term merges with complete truth-table agreement",
+        "The verified 2-bit greater-than benchmark merges two product terms through directional routing into one output lamp"
+      ]
+    }
+  },
+  {
+    "id": "implementation.xor.shared_nor_and_final_inverter",
+    "category": "physical_implementation",
+    "minecraftVersion": "1.20.4",
+    "logicalFunction": "Y = A XOR B",
+    "preconditions": [
+      "Original A and B nets can each fan out through isolated routes to one NOR stage and one AND stage.",
+      "A verified two-input AND implementation, one direct NOR attachment and one final inverter are available.",
+      "The workspace can keep the NOR input merge, AND network and final two-source merge from touching accidentally."
+    ],
+    "logicalIdentity": "A XOR B = NOT(NOR(A,B) OR (A AND B)).",
+    "roles": [
+      "isolated original-A branch",
+      "isolated original-B branch",
+      "NOR attachment block fed by A OR B",
+      "NOR wall torch",
+      "two-input AND implementation",
+      "final attachment block fed by NOR(A,B) OR AND(A,B)",
+      "final wall-torch inverter",
+      "XOR output route"
+    ],
+    "requiredConnections": [
+      "Route isolated copies of original A and B onto one continuous input merge that actually powers the NOR attachment block; the wall torch on that block emits NOR(A,B).",
+      "Route separate isolated copies of A and B through the verified De Morgan AND implementation to produce A AND B.",
+      "Keep the NOR output route and AND output route physically separate until they reach two different sides of the final attachment block.",
+      "The NOR output and AND output must each actually power the final attachment block by a straight wire endpoint, wire on top, or repeater output; a wire passing beside it is insufficient.",
+      "The final wall torch hangs on that exact final attachment block and has a face-adjacent receiver on a free side leading to Y.",
+      "If the AND signal is also needed as a carry output, branch it through a directional repeater before the final XOR attachment so the two consumers cannot back-power each other."
+    ],
+    "physicalInvariants": [
+      "For A=0,B=0, NOR=1 and AND=0, so the final attachment is powered and Y=0.",
+      "For A=1,B=0 or A=0,B=1, NOR=0 and AND=0, so the final attachment is unpowered and Y=1.",
+      "For A=1,B=1, NOR=0 and AND=1, so the final attachment is powered and Y=0.",
+      "The NOR and AND outputs remain distinct until the final attachment block, and neither touches the final torch's output route."
+    ],
+    "invalidPatterns": [
+      { "pattern": "the NOR and AND routes merge into ordinary wire before reaching the final attachment", "reason": "The merged signal can back-power either subcircuit; isolate branches or terminate them independently at the final block." },
+      { "pattern": "the NOR input wire passes beside its attachment block and then turns away", "reason": "The NOR block is never powered, so its torch stays lit in every row." },
+      { "pattern": "the final attachment is omitted and the NOR and AND wires merely run beside the final torch", "reason": "A torch only inverts its attachment block, not nearby dust." },
+      { "pattern": "the final attachment block or either of its input routes touches the output lamp", "reason": "A powered input to the final inverter can bypass the torch and light the lamp in rows where XOR must be zero." }
+    ],
+    "verification": {
+      "status": "world_truth_table_verified",
+      "evidence": [
+        "Boolean identity NOR(A,B) OR AND(A,B) = XNOR(A,B)",
+        "Minecraft 1.20.4 half-adder session used this shared NOR/AND/final-inverter structure and passed SUM/CARRY for all four world cases"
+      ]
+    }
+  },
+  {
+    "id": "implementation.half_adder.shared_and_xor",
+    "category": "physical_implementation",
+    "minecraftVersion": "1.20.4",
+    "logicalFunction": "SUM = A XOR B; CARRY = A AND B",
+    "preconditions": [
+      "Two binary inputs drive both a sum and a carry output.",
+      "The allowed blocks support the verified AND implementation, direct NOR and final XOR inverter.",
+      "The carry net can fan out once through directional isolation."
+    ],
+    "logicalIdentity": "CARRY = A AND B; SUM = NOT(NOR(A,B) OR CARRY).",
+    "roles": [
+      "A and B isolated fanout",
+      "shared A AND B stage",
+      "carry output branch",
+      "A OR B input merge followed by a NOR torch",
+      "final SUM attachment fed by the NOR and shared carry",
+      "final SUM torch and output route"
+    ],
+    "requiredConnections": [
+      "Build one A AND B signal using the verified De Morgan AND implementation; do not build a second copy for SUM.",
+      "Branch the AND output through one directional route to CARRY and through a separately isolated route to one side of the SUM attachment block.",
+      "Route isolated original A and B branches into one NOR attachment; route its wall-torch output to a different side of the SUM attachment block.",
+      "Both the NOR route and carry route must actually power the SUM attachment block without becoming adjacent anywhere upstream.",
+      "The SUM wall torch hangs on that attachment block and powers only the SUM delivery route; the carry delivery route must not touch the SUM lamp."
+    ],
+    "physicalInvariants": [
+      "At 00, NOR alone powers the SUM attachment, so SUM=0 and CARRY=0.",
+      "At 01 and 10, neither NOR nor CARRY powers the SUM attachment, so SUM=1 and CARRY=0.",
+      "At 11, CARRY alone powers the SUM attachment, so SUM=0 and CARRY=1.",
+      "The same physical AND signal is observed by CARRY and used as one input of the SUM inverter."
+    ],
+    "invalidPatterns": [
+      { "pattern": "SUM is built as a separate large dual-rail XOR while an AND signal already exists", "reason": "The extra gates and fanout add unnecessary collision and cross-talk risks; reuse the verified shared identity." },
+      { "pattern": "the carry branch and NOR branch join as wire before the SUM attachment", "reason": "They can back-power their source networks instead of acting as isolated inputs to the final inverter." },
+      { "pattern": "the carry delivery wire runs beside the SUM lamp", "reason": "CARRY=1 can light SUM directly and bypass XOR inversion." }
+    ],
+    "verification": {
+      "status": "world_truth_table_verified",
+      "evidence": [
+        "Minecraft 1.20.4 T02 half-adder layout passed simulator and all four live world cases",
+        "The verified layout used 71 primitive blocks with one shared AND net feeding CARRY and the final SUM inverter"
+      ]
+    }
+  },
+  {
+    "id": "implementation.full_adder.two_half_adders",
+    "category": "physical_implementation",
+    "minecraftVersion": "1.20.4",
+    "logicalFunction": "SUM = A XOR B XOR CIN; COUT = majority(A,B,CIN)",
+    "preconditions": [
+      "Three binary inputs require odd parity and majority outputs, including a conventional full adder or equivalent majority/parity circuit.",
+      "Two half-adder stages can occupy separate routing bands.",
+      "The two carry terms can enter an isolated OR merge."
+    ],
+    "logicalIdentity": "X=A XOR B; C1=A AND B; SUM=X XOR CIN; C2=X AND CIN; COUT=C1 OR C2. This COUT equals majority(A,B,CIN).",
+    "roles": [
+      "first verified half-adder for A and B",
+      "isolated intermediate X route",
+      "second verified half-adder for X and CIN",
+      "first carry C1 route",
+      "second carry C2 route",
+      "repeater-isolated COUT merge",
+      "SUM and COUT delivery lanes"
+    ],
+    "requiredConnections": [
+      "Lay out the first half-adder in one band, producing physically separate X and C1 routes.",
+      "Feed X through directional fanout into both inputs that need it in the second half-adder; do not run X alongside C1.",
+      "Lay out the second half-adder in a separate band, using X and original CIN to produce SUM and C2.",
+      "Feed C1 and C2 through separate repeaters into the isolated OR merge for COUT; neither carry route may touch SUM or an XOR attachment block.",
+      "Keep the final SUM and COUT delivery lanes separated through their fixed lamp coordinates.",
+      "For a LogicDesign expressed as three pairwise AND terms, the same physical COUT is valid because (A AND B) OR ((A XOR B) AND CIN) is Boolean-equivalent to the three-term majority equation; map all active node and edge IDs to the blocks that realize their equivalent signal."
+    ],
+    "physicalInvariants": [
+      "The first half-adder's X output matches A XOR B for all four A,B combinations before CIN is considered.",
+      "The second half-adder produces SUM=X XOR CIN and C2=X AND CIN.",
+      "C1 and C2 are mutually exclusive, so their isolated OR is COUT without feedback.",
+      "Across all eight rows, SUM is odd parity and COUT is one exactly when at least two inputs are one."
+    ],
+    "invalidPatterns": [
+      { "pattern": "three separate pairwise AND circuits are packed beside a separate two-stage XOR", "reason": "This duplicates fanout and creates many adjacent nets; the two-half-adder factorization uses fewer shared physical signals." },
+      { "pattern": "X and C1 share adjacent dust after the first half-adder", "reason": "The intermediate parity and carry become one net, corrupting both second-stage inputs." },
+      { "pattern": "C1 or C2 joins the COUT merge before an isolation repeater", "reason": "The merge can feed backward into a half-adder and hold a gate attachment powered." },
+      { "pattern": "the two half-adders reuse one attachment block", "reason": "One stage then switches torches in the other stage and the composition is no longer acyclic." }
+    ],
+    "verification": {
+      "status": "vanilla_mechanics_reviewed",
+      "evidence": [
+        "Boolean full-adder factorization into two half adders and one OR",
+        "Each half-adder primitive and the isolated OR primitive have Minecraft 1.20.4 live truth-table evidence"
+      ]
+    }
+  },
+  {
+    "id": "implementation.composition.isolated_gate_lanes",
+    "category": "physical_implementation",
+    "minecraftVersion": "1.20.4",
+    "logicalFunction": "Acyclic composition of multiple NOT, AND, OR, XOR, and XNOR stages",
+    "preconditions": [
+      "A checked acyclic LogicDesign contains more than one physical gate or an input fans out to several consumers.",
+      "The workspace permits separated routing lanes or supported vertical crossings.",
+      "Repeaters are available for directional isolation and signal refresh."
+    ],
+    "logicalIdentity": "A correct gate composition preserves each intermediate Boolean net as a distinct physical redstone net until an explicit logical merge.",
+    "roles": [
+      "one spatial lane per intermediate net",
+      "directional fanout branches",
+      "explicit gate attachment blocks",
+      "supported crossings",
+      "separate output delivery lanes"
+    ],
+    "requiredConnections": [
+      "Assign every intermediate signal a lane before placing blocks; unrelated horizontal wire lanes must have at least one unused coordinate between them.",
+      "Place a repeater at the start of each branch when one signal fans out, with its input side touching only the source net and its output side touching only that branch.",
+      "A gate input branch must end into its attachment block through a straight wire endpoint, a wire on top, or a repeater output pointing into the block.",
+      "For a crossing, raise one route on explicit solid supports so no wire can climb or descend into the other; audit every face and step adjacency at both ends of the bridge.",
+      "Keep distinct output routes separated through their lamps so one powered output cannot light or join the other output's delivery block.",
+      "After placement, trace every truth-table row through actual torch attachment states and repeater directions, not through implements labels."
+    ],
+    "physicalInvariants": [
+      "No pair of physically adjacent redstone wires belongs to unrelated logic nets.",
+      "Every wall torch has exactly one intended solid attachment block and at least one free-side output receiver.",
+      "Every route longer than fifteen wire coordinates is refreshed before power decays to zero.",
+      "Changing one input can affect only branches reachable through the directed physical topology.",
+      "A lamp is powered only by its own final output net."
+    ],
+    "invalidPatterns": [
+      { "pattern": "parallel buses are packed into consecutive rows or columns", "reason": "Redstone dust connects sideways, joining inputs and intermediate nets into one circuit." },
+      { "pattern": "a branch repeater is omitted because the implements IDs differ", "reason": "Implements metadata never provides electrical isolation; only physical geometry and directional components do." },
+      { "pattern": "a vertical bridge has redstone wire on adjacent stair-step levels", "reason": "Dust can climb the step and connect the crossing nets." },
+      { "pattern": "several gates share one attachment block merely to save space", "reason": "Power intended for any one gate switches every torch attached to that block." }
+    ],
+    "verification": {
+      "status": "vanilla_mechanics_reviewed",
+      "evidence": [
+        "Redstone wire adjacency, repeater direction, signal-strength, and torch-attachment rules in the deterministic simulator",
+        "Minecraft 1.20.4 regression layouts include isolated fanout, vertical bridges, multi-stage gates, and separate output delivery"
+      ]
+    }
+  }
+]
